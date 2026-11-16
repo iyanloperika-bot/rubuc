@@ -1,0 +1,391 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1">
+<title>Cube Solver 3D</title>
+<style>
+*{box-sizing:border-box;margin:0}
+:root{--l:#222a36;--t:#e8edf5;--m:#8a96a8;--a:#2dd4bf}
+body{background:#07090d;color:var(--t);font:14px/1.4 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;min-height:100vh;-webkit-tap-highlight-color:transparent}
+header{padding:12px 16px;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid var(--l)}
+header b{letter-spacing:.2em;font-size:15px}header b span{color:var(--a)}header small{color:var(--m)}
+main{display:grid;grid-template-columns:1fr 410px;gap:12px;padding:12px;height:calc(100vh - 50px)}
+#stage{position:relative;border:1px solid var(--l);border-radius:16px;overflow:hidden;background:radial-gradient(circle at 50% 35%,#1a2330,#090b10);min-height:300px}
+#stage canvas{position:absolute;inset:0}
+aside{overflow:auto;display:flex;flex-direction:column;gap:10px;padding-bottom:20px}
+.card{background:#0d1118;border:1px solid var(--l);border-radius:14px;padding:12px}
+h3{font-size:11px;letter-spacing:.14em;color:var(--m);margin-bottom:8px;font-weight:600}
+.row{display:grid;gap:6px;grid-template-columns:repeat(4,1fr);margin-bottom:6px}
+.b{background:#161c26;border:1px solid var(--l);color:var(--t);padding:10px 4px;border-radius:10px;font:600 11px system-ui;letter-spacing:.06em;cursor:pointer;transition:.15s}
+.b:hover{border-color:var(--a)}.b:active{transform:scale(.95)}
+.b.p{background:linear-gradient(135deg,#2dd4bf,#38bdf8);color:#04121a;border:0}
+.b.on{border-color:var(--a);color:var(--a)}
+#zoom{position:absolute;right:10px;top:10px;display:flex;flex-direction:column;gap:6px;z-index:2}
+#zoom .b{width:36px;height:36px;padding:0;font-size:18px}
+#pal{display:flex;gap:8px;justify-content:center;margin:8px 0}
+#pal i{width:34px;height:34px;border-radius:50%;border:3px solid transparent;cursor:pointer;transition:.15s}
+#pal i.on{border-color:#fff;transform:scale(1.15)}
+#net{display:grid;grid-template-columns:repeat(12,1fr);gap:2px;max-width:420px;margin:8px auto}
+.cell{aspect-ratio:1;border-radius:4px;border:1px solid #0007;cursor:pointer;font-size:10px;color:#0007;display:flex;align-items:center;justify-content:center;font-weight:700}
+#msg{display:none;padding:10px 12px;border-radius:12px;font-size:13px}
+#msg.e{display:block;background:#2a1216;border:1px solid #7f1d2d;color:#fecdd3}
+#msg.o{display:block;background:#0f2a25;border:1px solid #14705f;color:#a7f3d0}
+#msg li{margin-left:16px;margin-top:4px}
+#ld{position:absolute;inset:0;background:#05070bcc;display:none;align-items:center;justify-content:center;flex-direction:column;gap:10px;z-index:3;text-align:center;padding:20px}
+#ld i{width:34px;height:34px;border:3px solid var(--l);border-top-color:var(--a);border-radius:50%;animation:s 1s linear infinite}
+@keyframes s{to{transform:rotate(360deg)}}
+#cdn{position:absolute;inset:0;display:none;align-items:center;justify-content:center;text-align:center;padding:24px;color:#fecdd3}
+.tr{display:grid;grid-template-columns:1fr 1fr;gap:4px 12px}.tr span{color:var(--m)}
+#bg{height:6px;background:var(--l);border-radius:4px;margin:10px 0;overflow:hidden}#bar{height:100%;width:0;background:linear-gradient(90deg,#2dd4bf,#38bdf8);transition:.3s}
+#ml{display:flex;flex-wrap:wrap;gap:5px;max-height:130px;overflow:auto}
+#ml span{background:#161c26;border:1px solid var(--l);border-radius:6px;padding:3px 7px;font:600 12px ui-monospace,monospace}
+#ml span.on{background:var(--a);color:#04121a;border-color:var(--a)}
+#slots{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.slot{border:1px solid var(--l);border-radius:12px;padding:8px;display:flex;flex-direction:column;gap:6px;cursor:pointer}.slot.on{border-color:var(--a)}
+.slot img,.ph{width:100%;aspect-ratio:4/3;object-fit:cover;border-radius:8px;background:#161c26}
+.slot small{color:var(--m);font-size:11px}.bt{display:grid;grid-template-columns:1fr 36px;gap:4px}.bt .b{padding:6px 2px;font-size:9.5px}.bt .b:last-child{grid-column:1/3}
+#sc{width:100%;border-radius:10px;margin-top:8px;touch-action:none;display:none}
+.cell.unk{border:1px dashed #ef4444;background:#4b5563}.cell.unk::after{content:'?';color:#fff}.cell.dbt{outline:2px solid #fbbf24;outline-offset:-2px}
+@media(max-width:820px){main{grid-template-columns:1fr;height:auto}#stage{position:sticky;top:0;z-index:5;height:42vh;min-height:230px}aside{overflow:visible}}
+</style>
+</head>
+<body>
+<header><b>CUBE<span>SOLVER</span></b><small>3D · Kociemba two-phase</small></header>
+<main>
+<section id="stage">
+ <div style="position:absolute;left:12px;bottom:8px;font-size:11px;color:#8a96a8;pointer-events:none;z-index:2">Pilih warna, lalu ketuk stiker 3D untuk mengubahnya</div>
+ <div id="zoom"><button class="b" id="zi">+</button><button class="b" id="zo">−</button></div>
+ <div id="ld"><i></i><div id="ldt">Memproses…</div></div>
+ <div id="cdn">Three.js gagal dimuat (cek koneksi internet / CDN). Tampilan 3D tidak tersedia, namun input 2D, validasi, dan solver tetap berfungsi.</div>
+</section>
+<aside>
+ <div class="card">
+  <h3>INPUT WARNA</h3>
+  <select id="sz" class="b" style="width:100%;margin-bottom:8px"><option value="2">Ukuran 2×2×2</option><option value="3" selected>Ukuran 3×3×3</option><option value="4">Ukuran 4×4×4</option><option value="5">Ukuran 5×5×5</option><option value="6">Ukuran 6×6×6</option><option value="7">Ukuran 7×7×7</option></select>
+  <div class="row" style="grid-template-columns:1fr 1fr"><button class="b on" id="m2">2D COLOR INPUT</button><button class="b" id="m3">3D EDITING</button></div>
+  <div id="pal"></div>
+  <div id="net"></div>
+  <div class="row" style="grid-template-columns:repeat(3,1fr);margin:0"><button class="b" id="un">UNDO</button><button class="b" id="re">REDO</button><button class="b" id="rs0">RESET</button></div>
+ </div>
+ <div class="card" id="scan"><h3>SCAN RUBIK FROM PHOTOS</h3>
+  <p style="color:#8a96a8;font-size:12px;margin-bottom:8px">Foto tiap sisi lurus dari depan. Sisi samping: Up di atas foto. Up: Back di atas. Down: Front di atas. Geser kotak hijau ke atas Rubik, atur ukurannya, lalu cek lingkaran warna hasil deteksi.</p>
+  <button class="b" id="fmb" style="width:100%;margin-bottom:8px">UPLOAD BANYAK FOTO</button><input type="file" id="fm" multiple accept="image/jpeg,image/png,image/webp" hidden>
+  <div id="slots"></div><canvas id="sc"></canvas>
+  <div id="se" style="display:none;margin-top:8px"><small id="hint" style="color:#8a96a8"></small><input type="range" id="szr" min="20" max="100" style="width:100%;margin:8px 0 2px"><input type="range" id="szt" min="-28" max="28" step=".5" style="width:100%;margin:2px 0 8px">
+   <div class="row" style="margin:0"><button class="b" id="sr">PUTAR ↻</button><button class="b" id="sw">KALIBRASI PUTIH</button><button class="b" id="sz0">RESET WB</button><button class="b" id="sx">PINDAI ULANG</button></div></div>
+  <div id="scs" style="margin-top:8px;font-size:12px;color:#8a96a8">Belum ada foto.</div></div>
+ <div id="msg"></div>
+ <div class="card">
+  <h3>CONTROL PANEL</h3>
+  <div class="row"><button class="b p" id="so">SOLVE</button><button class="b" id="pl">PLAY</button><button class="b" id="pa">PAUSE</button><button class="b" id="rm">RESUME</button></div>
+  <div class="row"><button class="b" id="pv">◀ PREV</button><button class="b" id="nx">NEXT ▶</button><button class="b" id="rt">RESTART</button><button class="b" id="rs1">RESET</button></div>
+  <h3 style="margin-top:10px">KECEPATAN</h3>
+  <div class="row" id="sp" style="margin:0"><button class="b">Slow</button><button class="b on">Normal</button><button class="b">Fast</button><button class="b">Ultra Fast</button></div>
+ </div>
+ <div class="card">
+  <h3>MOVE TRACKER</h3>
+  <div class="tr"><span>Gerakan</span><b id="tm">Move 0/0</b><span>Current Move</span><b id="cm">—</b><span>Next Move</span><b id="nm">—</b><span>Progress</span><b id="pc">0%</b></div>
+  <div id="bg"><div id="bar"></div></div>
+  <div id="ml"></div>
+ </div>
+</aside>
+</main>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+//SOLVER-START
+const FN='URFDLB',CN=['Putih','Merah','Hijau','Kuning','Oranye','Biru'];
+const COL=['#f4f4f4','#d6202b','#1ea34a','#ffd400','#ff7a00','#1f5fd8'];
+const CF=[[8,9,20],[6,18,38],[0,36,47],[2,45,11],[29,26,15],[27,44,24],[33,53,42],[35,17,51]];
+const EF=[[5,10],[7,19],[3,37],[1,46],[32,16],[28,25],[30,43],[34,52],[23,12],[21,41],[50,39],[48,14]];
+const CPN=['URF','UFL','ULB','UBR','DFR','DLF','DBL','DRB'],EPN=['UR','UF','UL','UB','DR','DF','DL','DB','FR','FL','BL','BR'];
+const CFa=CF.map(a=>a.map(i=>i/9|0)),EFa=EF.map(a=>a.map(i=>i/9|0));
+const NRM=[[0,1,0],[1,0,0],[0,0,1],[0,-1,0],[-1,0,0],[0,0,-1]];
+const fpos=i=>{const f=i/9|0,r=(i%9)/3|0,c=i%3;return[[c-1,1,r-1],[1,1-r,1-c],[c-1,1-r,1],[c-1,-1,1-r],[-1,1-r,c-1],[1-c,1-r,-1]][f]};
+const POS=[],IDX={};
+for(let i=0;i<54;i++){POS[i]=fpos(i);IDX[POS[i]+'|'+NRM[i/9|0]]=i}
+const rot=(n,v)=>{const c=[n[1]*v[2]-n[2]*v[1],n[2]*v[0]-n[0]*v[2],n[0]*v[1]-n[1]*v[0]],d=n[0]*v[0]+n[1]*v[1]+n[2]*v[2];return v.map((x,i)=>Math.round(-c[i]+n[i]*d)+0)};
+const MP=[];
+for(let f=0;f<6;f++){const n=NRM[f],Q=[...Array(54).keys()];
+ for(let i=0;i<54;i++){const p=POS[i];if(p[0]*n[0]+p[1]*n[1]+p[2]*n[2]==1)Q[IDX[rot(n,p)+'|'+rot(n,NRM[i/9|0])]]=i}
+ MP[f*3]=Q;MP[f*3+1]=Q.map(j=>Q[j]);MP[f*3+2]=Q.map(j=>Q[Q[j]])}
+const app=(s,m)=>MP[m].map(j=>s[j]);
+const mn=m=>FN[m/3|0]+['','2',"'"][m%3],inv=m=>(m/3|0)*3+2-m%3;
+function cub(P){const s={cp:[],co:[],ep:[],eo:[]};
+ CF.forEach((f,c)=>{for(let k=0;k<3;k++){const j=CF.findIndex(e=>e[0]==P[f[k]]);if(j>=0){s.cp[c]=j;s.co[c]=k}}});
+ EF.forEach((f,c)=>{for(let k=0;k<2;k++){const j=EF.findIndex(e=>e[0]==P[f[k]]);if(j>=0){s.ep[c]=j;s.eo[c]=k}}});return s}
+const M=MP.map(cub);
+const mul=(a,b)=>({cp:b.cp.map(x=>a.cp[x]),co:b.cp.map((x,i)=>(a.co[x]+b.co[i])%3),ep:b.ep.map(x=>a.ep[x]),eo:b.ep.map((x,i)=>(a.eo[x]+b.eo[i])%2)});
+const FACT=[1,1,2,6,24,120,720,5040];
+const prk=(a,o,n)=>{let r=0;for(let i=0;i<n-1;i++){let c=0;for(let j=i+1;j<n;j++)if(a[o+j]<a[o+i])c++;r+=c*FACT[n-1-i]}return r};
+const cnk=(n,k)=>{if(k>n)return 0;let r=1;for(let i=0;i<k;i++)r=r*(n-i)/(i+1);return Math.round(r)};
+const twist=s=>s.co.slice(0,7).reduce((a,x)=>a*3+x,0),flip=s=>s.eo.slice(0,11).reduce((a,x)=>a*2+x,0);
+const slice=s=>{let a=0,x=0;for(let j=11;j>=0;j--)if(s.ep[j]>=8){a+=cnk(11-j,x+1);x++}return a};
+const P2=[0,1,2,9,10,11,4,7,13,16];
+let TW,FL,SL,CP,EP8,SP,A1,B1,A2,B2,built=0;
+function mk(enc,n,ms,s0){const nm=ms.length,t=new Uint16Array(n*nm),seen=new Uint8Array(n),q=[s0];seen[enc(s0)]=1;
+ for(let h=0;h<q.length;h++){const s=q[h],c=enc(s);for(let j=0;j<nm;j++){const u=mul(s,M[ms[j]]),d=enc(u);t[c*nm+j]=d;if(!seen[d]){seen[d]=1;q.push(u)}}}
+ return t}
+function prn(a,na,b,nb,nm){const p=new Uint8Array(na*nb).fill(255);p[0]=0;let d=0,cnt=1;
+ while(cnt){cnt=0;for(let i=0;i<p.length;i++)if(p[i]==d){const x=i/nb|0,y=i%nb;for(let m=0;m<nm;m++){const j=a[x*nm+m]*nb+b[y*nm+m];if(p[j]==255){p[j]=d+1;cnt++}}}d++}
+ return p}
+function build(){if(built)return;built=1;const A=[...Array(18).keys()];
+ const S0={cp:[0,1,2,3,4,5,6,7],co:Array(8).fill(0),ep:[...Array(12).keys()],eo:Array(12).fill(0)};
+ TW=mk(twist,2187,A,S0);FL=mk(flip,2048,A,S0);SL=mk(slice,495,A,S0);
+ CP=mk(s=>prk(s.cp,0,8),40320,P2,S0);EP8=mk(s=>prk(s.ep,0,8),40320,P2,S0);SP=mk(s=>prk(s.ep,8,4),24,P2,S0);
+ A1=prn(SL,495,TW,2187,18);B1=prn(SL,495,FL,2048,18);A2=prn(CP,40320,SP,24,10);B2=prn(EP8,40320,SP,24,10)}
+function solveCube(s0){build();
+ const tw=twist(s0),fl=flip(s0),sl=slice(s0),path=[],t0=Date.now();let best=null,done=0;
+ function g2(c,e,q,d,l,r){const h=Math.max(A2[c*24+q],B2[e*24+q]);if(h>d)return 0;if(!d)return 1;
+  for(let j=0;j<10;j++){const m=P2[j],f=m/3|0;if(f==l||(f%3==l%3&&f<l))continue;
+   if(g2(CP[c*10+j],EP8[e*10+j],SP[q*10+j],d-1,f,r)){r.unshift(m);return 1}}return 0}
+ function p2(s,L){if(L<0)return null;const c=prk(s.cp,0,8),e=prk(s.ep,0,8),q=prk(s.ep,8,4);
+  for(let D=Math.max(A2[c*24+q],B2[e*24+q]);D<=L;D++){const r=[];if(g2(c,e,q,D,-1,r))return r}return null}
+ function g1(t,f,s,d,l){if(done)return;const h=Math.max(A1[s*2187+t],B1[s*2048+f]);if(h>d)return;
+  if(!d){if(h)return;if(best&&Date.now()-t0>800){done=1;return}
+   const st=path.reduce((a,m)=>mul(a,M[m]),s0),r=p2(st,best?best.length-path.length-1:18);
+   if(r)best=path.concat(r);return}
+  for(let m=0;m<18;m++){const fc=m/3|0;if(fc==l||(fc%3==l%3&&fc<l))continue;
+   path.push(m);g1(TW[t*18+m],FL[f*18+m],SL[s*18+m],d-1,fc);path.pop();if(done)return}}
+ for(let d=0;d<=12&&!done;d++){if(best&&(d>=best.length||Date.now()-t0>800))break;g1(tw,fl,sl,d,-1)}
+ return best}
+const par=a=>{let n=0;for(let i=0;i<a.length;i++)for(let j=i+1;j<a.length;j++)if(a[j]<a[i])n++;return n%2};
+function validate(s){const E=[],cnt=Array(6).fill(0);s.forEach(c=>cnt[c]++);
+ cnt.forEach((n,c)=>{if(n!=9)E.push(`Warna ${CN[c]} berjumlah ${n}, harus tepat 9. ${n>9?'Ubah beberapa stiker '+CN[c]+' ke warna yang jumlahnya kurang.':'Ubah stiker warna yang berlebih menjadi '+CN[c]+'.'}`)});
+ const ctr=[4,13,22,31,40,49].map(i=>s[i]);
+ if(new Set(ctr).size<6)E.push('Center (stiker tengah) keenam sisi harus 6 warna berbeda. Perbaiki stiker tengah tiap sisi.');
+ if(E.length)return{E};
+ const fm=[];ctr.forEach((c,f)=>fm[c]=f);
+ const o={cp:[],co:[],ep:[],eo:[]},sc=[],se=[];
+ for(let c=0;c<8;c++){const fs=CF[c].map(i=>fm[s[i]]);let j=-1,kk=0;
+  for(let k=0;k<3&&j<0;k++){const t=[fs[k],fs[(k+1)%3],fs[(k+2)%3]];j=CFa.findIndex(a=>a.every((x,m)=>x==t[m]));kk=k}
+  const nm=fs.map(f=>CN[ctr[f]]).join('/');
+  if(j<0)E.push(`Sudut ${CPN[c]} (${nm}) adalah kombinasi warna yang tidak ada pada Rubik asli. Periksa ketiga stiker sudut ini.`);
+  else if(sc[j]!=null)E.push(`Sudut ${nm} muncul dua kali (di ${CPN[sc[j]]} dan ${CPN[c]}). Ganti salah satunya.`);
+  else{sc[j]=c;o.cp[c]=j;o.co[c]=kk}}
+ for(let c=0;c<12;c++){const fs=EF[c].map(i=>fm[s[i]]);let j=-1,k=0;
+  EFa.forEach((a,x)=>{if(a[0]==fs[0]&&a[1]==fs[1]){j=x;k=0}else if(a[0]==fs[1]&&a[1]==fs[0]){j=x;k=1}});
+  const nm=fs.map(f=>CN[ctr[f]]).join('/');
+  if(j<0)E.push(`Edge ${EPN[c]} (${nm}) adalah kombinasi warna yang tidak ada pada Rubik asli. Periksa kedua stiker edge ini.`);
+  else if(se[j]!=null)E.push(`Edge ${nm} muncul dua kali (di ${EPN[se[j]]} dan ${EPN[c]}). Ganti salah satunya.`);
+  else{se[j]=c;o.ep[c]=j;o.eo[c]=k}}
+ if(E.length)return{E};
+ if(o.co.reduce((a,b)=>a+b,0)%3)E.push('Orientasi sudut tidak mungkin: ada satu sudut yang terpuntir. Putar warna pada satu sudut (tiga stiker) hingga sesuai.');
+ if(o.eo.reduce((a,b)=>a+b,0)%2)E.push('Orientasi edge tidak mungkin: ada satu edge yang terbalik. Tukar dua stiker pada satu edge.');
+ if(par(o.cp)!=par(o.ep))E.push('Permutasi tidak mungkin (parity): ada dua piece yang tertukar. Periksa dan tukar posisi dua sudut atau dua edge.');
+ return E.length?{E}:{o}}
+const isSolved=s=>[0,1,2,3,4,5].every(f=>{for(let i=1;i<9;i++)if(s[f*9+i]!=s[f*9])return 0;return 1});
+//SOLVER-END
+const $=s=>document.querySelector(s),ST=$('#stage');
+let st=Array.from({length:54},(_,i)=>i/9|0),cur=0,mode='2d',sol=null,p=0,start=null,busy=0,playing=0,spd=1,anim_=null,dirty=1;
+const SPD=[900,450,220,90],cells=[],NET=$('#net'),FO=[[1,0],[2,1],[1,1],[1,2],[0,1],[3,1]];
+let hist=[st.join()],hp=0;
+//MODEL-START
+let N=3,G;
+const solvedN=n=>Array.from({length:6*n*n},(_,i)=>i/(n*n)|0);
+const uniN=(s,n)=>[0,1,2,3,4,5].every(f=>{for(let i=1;i<n*n;i++)if(s[f*n*n+i]!=s[f*n*n])return 0;return 1});
+function model(n){const h=(n-1)/2,n2=n*n,pos=[],idx={};
+ for(let i=0;i<6*n2;i++){const f=i/n2|0,r=(i%n2)/n|0,c=i%n;pos[i]=[[c-h,h,r-h],[h,h-r,h-c],[c-h,h-r,h],[c-h,-h,h-r],[-h,h-r,c-h],[h-c,h-r,-h]][f];idx[pos[i]+'|'+NRM[f]]=i}
+ const rt=(a,v)=>{const c=[a[1]*v[2]-a[2]*v[1],a[2]*v[0]-a[0]*v[2],a[0]*v[1]-a[1]*v[0]],d=a[0]*v[0]+a[1]*v[1]+a[2]*v[2];return v.map((x,i)=>-c[i]+a[i]*d+0)};
+ const mp=[];
+ for(let f=0;f<6;f++)for(let d=0;d<n;d++){const a=NRM[f],Q=[...Array(6*n2).keys()];
+  for(let i=0;i<6*n2;i++){const p=pos[i];if(p[0]*a[0]+p[1]*a[1]+p[2]*a[2]==h-d)Q[idx[rt(a,p)+'|'+rt(a,NRM[i/n2|0])]]=i}
+  const b=(f*n+d)*3;mp[b]=Q;mp[b+1]=Q.map(j=>Q[j]);mp[b+2]=Q.map(j=>Q[Q[j]])}
+ return{n,h,pos,mp}}
+G=model(3);
+const gapp=(s,m)=>G.mp[m].map(j=>s[j]),gm=(m,n)=>(m/3|0)*n*3+m%3;
+function solve2(s){const c=Array(6).fill(0);s.forEach(x=>c[x]++);const b=c.findIndex(x=>x!=4);
+ if(b>=0)return{E:[`Warna ${CN[b]} berjumlah ${c[b]}, harus tepat 4 pada Rubik 2×2.`]};
+ const e=solvedN(3);s.forEach((x,i)=>{e[(i/4|0)*9+((i%4)/2|0)*6+(i%2)*2]=x});
+ let v=validate(e);
+ if(v.E&&v.E.some(x=>/parity/.test(x))){[e[5],e[7]]=[e[7],e[5]];[e[10],e[19]]=[e[19],e[10]];v=validate(e)}
+ return v}
+//MODEL-END
+let geo=[];
+function build3D(n){if(!T3)return;cube.children.slice().forEach(c=>cube.remove(c));geo.forEach(g=>g.dispose());geo=[];cubs=[];stk=[];
+ const s=3/n,h=(n-1)/2,bg=new THREE.BoxGeometry(.97*s,.97*s,.97*s),pg=new THREE.PlaneGeometry(.84*s,.84*s),bm=new THREE.MeshLambertMaterial({color:0x0b0d12}),cm={};geo.push(bg,pg,bm);
+ for(let x=-h;x<=h;x++)for(let y=-h;y<=h;y++)for(let z=-h;z<=h;z++){if(n>2&&Math.max(Math.abs(x),Math.abs(y),Math.abs(z))<h)continue;
+  const m=new THREE.Mesh(bg,bm);m.position.set(x*s,y*s,z*s);m.userData.p=[x,y,z];cube.add(m);cubs.push(m);cm[[x,y,z]]=m}
+ for(let i=0;i<6*n*n;i++){const nv=new THREE.Vector3(...NRM[i/(n*n)|0]),m=new THREE.Mesh(pg,MAT[0]);
+  m.position.copy(nv).multiplyScalar(.49*s);m.quaternion.setFromUnitVectors(new THREE.Vector3(0,0,1),nv);m.userData.i=i;cm[G.pos[i]+''].add(m);stk[i]=m}
+ dirty=1}
+function setSize(n){if(busy){$('#sz').value=N;return}N=n;G=model(n);clearScan();st=solvedN(n);hist=[st.join()];hp=0;clearSol();buildNet();build3D(n);
+ msg(n>3?`Ukuran ${n}×${n}: visualisasi, input warna, dan rotasi layer sudah didukung, tetapi solver 4×4–7×7 belum tersedia.`:n==2?'2×2: pakai skema warna standar (Putih atas, Hijau depan, Merah kanan).':'',n==3?'':'o');refresh()}
+// ---------- 3D ----------
+let T3=!!window.THREE,R,S,C,cv,MAT,cube,pvt,cubs=[],stk=[],yaw=.7,pitch=.5,dist=9.5;
+const cl=d=>Math.max(5.5,Math.min(18,d));
+function cam(){const c=Math.cos(pitch);C.position.set(dist*c*Math.sin(yaw),dist*Math.sin(pitch),dist*c*Math.cos(yaw));C.lookAt(0,0,0);dirty=1}
+function rs(){if(!T3)return;const w=ST.clientWidth,h=ST.clientHeight;R.setSize(w,h);C.aspect=w/h;C.fov=w/h<1?58:38;C.updateProjectionMatrix();cam()}
+function init3D(){
+ R=new THREE.WebGLRenderer({antialias:true,alpha:true});R.setPixelRatio(Math.min(devicePixelRatio,2));R.shadowMap.enabled=true;
+ cv=R.domElement;cv.style.touchAction='none';ST.prepend(cv);
+ S=new THREE.Scene();C=new THREE.PerspectiveCamera(38,1,.1,100);
+ S.add(new THREE.AmbientLight(0xffffff,.72),C);const hl=new THREE.DirectionalLight(0xffffff,.34);hl.position.set(0,0,1);C.add(hl);
+ MAT=COL.map(c=>new THREE.MeshLambertMaterial({color:c}));MAT[6]=new THREE.MeshLambertMaterial({color:"#4b5563"});
+ cube=new THREE.Group();pvt=new THREE.Group();S.add(cube,pvt);build3D(N);
+ rs();new ResizeObserver(rs).observe(ST);
+ const P=new Map(),rc=new THREE.Raycaster(),v2=new THREE.Vector2();let tap=0,mv=0,pd=0;
+ cv.addEventListener('pointerdown',e=>{cv.setPointerCapture(e.pointerId);P.set(e.pointerId,[e.clientX,e.clientY]);tap=P.size==1;mv=0;pd=0});
+ cv.addEventListener('pointermove',e=>{const o=P.get(e.pointerId);if(!o)return;
+  if(P.size==1){const dx=e.clientX-o[0],dy=e.clientY-o[1];mv+=Math.abs(dx)+Math.abs(dy);yaw-=dx*.008;pitch=Math.max(-1.4,Math.min(1.4,pitch+dy*.008))}
+  else{tap=0;P.set(e.pointerId,[e.clientX,e.clientY]);const a=[...P.values()],d=Math.hypot(a[0][0]-a[1][0],a[0][1]-a[1][1]);if(pd)dist=cl(dist*pd/d);pd=d}
+  P.set(e.pointerId,[e.clientX,e.clientY]);cam()});
+ const up=e=>{if(P.has(e.pointerId)&&e.type=='pointerup'&&tap&&mv<8){const r=cv.getBoundingClientRect();v2.set((e.clientX-r.left)/r.width*2-1,-(e.clientY-r.top)/r.height*2+1);rc.setFromCamera(v2,C);const h=rc.intersectObjects(stk)[0];if(h)paint(h.object.userData.i)}
+  P.delete(e.pointerId);pd=0;tap=0};
+ cv.addEventListener('pointerup',up);cv.addEventListener('pointercancel',up);
+ cv.addEventListener('wheel',e=>{e.preventDefault();dist=cl(dist*(1+e.deltaY*.001));cam()},{passive:false});
+}
+if(T3)try{init3D()}catch(e){T3=0}
+if(!T3)$('#cdn').style.display='flex';
+$('#zi').onclick=()=>{if(T3){dist=cl(dist*.85);cam()}};$('#zo').onclick=()=>{if(T3){dist=cl(dist*1.18);cam()}};
+// ---------- UI ----------
+function buildNet(){NET.innerHTML='';cells.length=0;NET.style.gridTemplateColumns=`repeat(${4*N},1fr)`;const n2=N*N;
+ for(let i=0;i<6*n2;i++){const f=i/n2|0,r=(i%n2)/N|0,c=i%N,d=document.createElement('div');d.className='cell';d.style.gridColumn=FO[f][0]*N+c+1;d.style.gridRow=FO[f][1]*N+r+1;if(N%2&&r==c&&r==(N-1)/2)d.textContent=FN[f];d.onclick=()=>paint(i);NET.appendChild(d);cells.push(d)}}
+buildNet();
+COL.forEach((c,i)=>{const e=document.createElement('i');e.style.background=c;e.title=CN[i];e.onclick=()=>{cur=i;[...$('#pal').children].forEach((x,j)=>x.classList.toggle('on',j==i))};$('#pal').appendChild(e)});
+$('#pal').children[0].classList.add('on');
+function setMode(m){mode=m;$('#m2').classList.toggle('on',m=='2d');$('#m3').classList.toggle('on',m=='3d');NET.style.display=m=='2d'?'grid':'none'}
+$('#sz').onchange=e=>setSize(+e.target.value);$('#m2').onclick=()=>setMode('2d');$('#m3').onclick=()=>setMode('3d');setMode('2d');
+function msg(h,t){const e=$('#msg');e.className=t||'';e.innerHTML=h||''}
+function track(){const N=sol?sol.length:0;$('#tm').textContent=`Move ${p}/${N}`;$('#cm').textContent=p?mn(sol[p-1]):'—';$('#nm').textContent=sol&&p<N?mn(sol[p]):'—';
+ const pc=N?Math.round(p/N*100):0;$('#pc').textContent=pc+'%';$('#bar').style.width=pc+'%';[...$('#ml').children].forEach((e,i)=>e.classList.toggle('on',i==p-1))}
+function refresh(){st.forEach((c,i)=>{const e=cells[i];e.style.background=COL[c]||'#4b5563';e.classList.toggle('unk',c==6);e.classList.toggle('dbt',c!=6&&cfd[i]!=null&&cfd[i]<.8);if(T3)stk[i].material=MAT[c]});dirty=1;track()}
+function clearSol(){sol=null;p=0;playing=0;$('#ml').innerHTML=''}
+function setSt(a,push){if(busy)return;st=a;if(push){hist=hist.slice(0,hp+1);hist.push(st.join());hp++}clearSol();msg('');refresh()}
+function paint(i){if(busy||st[i]==cur)return;const a=st.slice();a[i]=cur;cfd[i]=1;setSt(a,1)}
+$('#un').onclick=()=>{if(!busy&&hp>0){hp--;setSt(hist[hp].split(',').map(Number))}};
+$('#re').onclick=()=>{if(!busy&&hp<hist.length-1){hp++;setSt(hist[hp].split(',').map(Number))}};
+const reset=()=>{if(!busy){clearScan();setSt(solvedN(N),1)}};$('#rs0').onclick=$('#rs1').onclick=reset;
+[...$('#sp').children].forEach((b,i)=>b.onclick=()=>{spd=i;[...$('#sp').children].forEach((x,j)=>x.classList.toggle('on',j==i))});
+function run(m,done){busy=1;const f=m/3|0,k=m%3,fin=()=>{st=gapp(st,gm(m,N));busy=0;refresh();done&&done()};
+ if(!T3){setTimeout(fin,SPD[spd]/2);return}
+ const n=new THREE.Vector3(...NRM[f]),ang=[-1,-2,1][k]*Math.PI/2,L=cubs.filter(c=>{const q=c.userData.p;return q[0]*NRM[f][0]+q[1]*NRM[f][1]+q[2]*NRM[f][2]==G.h}),t0=performance.now(),dur=SPD[spd]*(k==1?1.5:1);
+ L.forEach(c=>pvt.add(c));
+ anim_=now=>{const t=Math.min(1,(now-t0)/dur),e=t<.5?2*t*t:1-Math.pow(-2*t+2,2)/2;pvt.quaternion.setFromAxisAngle(n,ang*e);dirty=1;
+  if(t>=1){pvt.quaternion.set(0,0,0,1);L.forEach(c=>cube.add(c));anim_=null;fin()}}}
+function next(cb){if(busy||!sol||p>=sol.length){cb&&cb();return}run(sol[p++],cb);track()}
+function pump(){if(!playing)return;if(!sol||p>=sol.length){playing=0;return}next(pump)}
+$('#nx').onclick=()=>{playing=0;next()};
+$('#pv').onclick=()=>{playing=0;if(busy||!sol||p<=0)return;p--;run(inv(sol[p]));track()};
+$('#pl').onclick=$('#rm').onclick=()=>{if(!sol||busy)return;if(p>=sol.length)return;playing=1;pump()};
+$('#pa').onclick=()=>{playing=0};
+$('#rt').onclick=()=>{playing=0;if(busy||!sol)return;st=start.slice();p=0;refresh()};
+function ld(on,t){$('#ld').style.display=on?'flex':'none';if(t)$('#ldt').textContent=t}
+$('#so').onclick=()=>{if(busy)return;playing=0;clearSol();const un=unk();if(un.length){msg('<b>Belum semua sticker terdeteksi — solver tidak dijalankan.</b><ul>'+un.map(x=>'<li>'+x+'</li>').join('')+'</ul>','e');return}if(N>3){msg('Solver untuk 4×4 sampai 7×7 belum tersedia, jadi tidak dijalankan. Yang didukung solver: 2×2 dan 3×3.','e');return}const v=N==2?solve2(st):validate(st);
+ if(v.E){msg('<b>Konfigurasi tidak valid — solver tidak dijalankan.</b><ul>'+v.E.map(e=>'<li>'+e+'</li>').join('')+'</ul>','e');return}
+ msg('');ld(1,built?'Menghitung solusi…':'Membangun tabel pruning (pertama kali, beberapa detik)…');
+ setTimeout(()=>{try{
+  const r=solveCube(v.o);let t=st;if(!r)throw Error('Solver tidak menemukan solusi.');
+  r.forEach(m=>t=gapp(t,gm(m,N)));if(!uniN(t,N))throw Error('Verifikasi gagal: solusi tidak menyelesaikan kubus.');
+  start=st.slice();sol=r;p=0;$('#ml').innerHTML=r.map(m=>`<span>${mn(m)}</span>`).join('');
+  msg(r.length?`Solusi ditemukan: ${r.length} gerakan (sudah diverifikasi pada state internal).`:'Rubik sudah dalam kondisi solved.','o');
+  track();if(r.length){playing=1;pump()}
+ }catch(e){msg('Error: '+e.message,'e')}ld(0)},60)};
+//SCAN-START
+function hsv(r,g,b){r/=255;g/=255;b/=255;const M=Math.max(r,g,b),m=Math.min(r,g,b),d=M-m;let h=0;if(d){h=M==r?((g-b)/d)%6:M==g?(b-r)/d+2:(r-g)/d+4;h*=60;if(h<0)h+=360}return[h,M?d/M:0,M]}
+const CUT=[14,40,75,170,270,335];
+function classify(rgb){const[h,s,v]=hsv(...rgb);
+ if(v<.15)return[6,0];
+ if(s<.3)return v>.4?[0,Math.min(1,(.36-s)/.2)]:[6,0];
+ let c;if(h>=335||h<14)c=1;else if(h<40)c=4;else if(h<75)c=3;else if(h<170)c=2;else if(h<270)c=5;else return[6,0];
+ const dd=Math.min(...CUT.map(x=>{const a=Math.abs(h-x);return Math.min(a,360-a)}));
+ return[c,Math.min(1,dd/9)*Math.min(1,s/.5)]}
+//SCAN-END
+const FACES=['Up','Right','Front','Down','Left','Back'],SLOT=[2,5,1,4,0,3],HINT=['Atas foto = sisi Back','Atas foto = sisi Up','Atas foto = sisi Up','Atas foto = sisi Front','Atas foto = sisi Up','Atas foto = sisi Up'];
+let SC=[],sel=-1,scanOn=0,cfd=[],cal=0,dr=null;
+const scv=$('#sc'),cl2=(v,a,b)=>Math.max(a,Math.min(b,v));
+const med=a=>{a.sort((x,y)=>x-y);return a[a.length>>1]};
+function sample(ctx,x,y,r){const w=Math.max(2,Math.round(2*r)),d=ctx.getImageData(Math.max(0,Math.round(x-r)),Math.max(0,Math.round(y-r)),w,w).data,A=[],B=[],C2=[];for(let i=0;i<d.length;i+=4){A.push(d[i]);B.push(d[i+1]);C2.push(d[i+2])}return[med(A),med(B),med(C2)]}
+function unk(){const n2=N*N,o=[];for(let f=0;f<6;f++){const u=[];for(let j=0;j<n2;j++)if(st[f*n2+j]==6)u.push(`baris ${(j/N|0)+1} kolom ${j%N+1}`);
+ if(u.length==n2)o.push(`Sisi ${FACES[f]} belum dipindai atau belum diisi.`);else if(u.length)o.push(`Sisi ${FACES[f]}: sticker belum terdeteksi di ${u.slice(0,8).join('; ')}${u.length>8?' …':''}. Perbaiki manual atau pindai ulang.`)}return o}
+function sstat(){const k=SC.filter(Boolean).length,u=scanOn?st.filter(x=>x==6).length:0,miss=SLOT.filter(f=>!SC[f]).map(f=>FACES[f]);
+ $('#scs').textContent=k?`${k}/6 sisi dipindai`+(miss.length?` — belum: ${miss.join(', ')}`:'')+(u?` · ${u} sticker belum terdeteksi`:' · semua sticker terdeteksi'):'Belum ada foto.'}
+function clearScan(){SC.forEach(q=>q&&URL.revokeObjectURL(q.u));SC=[];scanOn=0;cfd=[];sel=-1;cal=0;cards();edit();sstat()}
+//VIS-START
+function pt(q,u,v){const c=Math.cos(q.th),s=Math.sin(q.th),x=(u-.5)*q.gs,y=(v-.5)*q.gs;return[q.gx+q.gs/2+x*c-y*s,q.gy+q.gs/2+x*s+y*c]}
+function rgbAt(I,x,y){const i=(Math.min(I.H-1,Math.max(0,Math.round(y)))*I.W+Math.min(I.W-1,Math.max(0,Math.round(x))))*4;return[I.d[i],I.d[i+1],I.d[i+2]]}
+function score(I,q,n){let L=0,V=0,G=0,gn=0;
+ for(let r=0;r<n;r++)for(let c=0;c<n;c++){const s1=[0,0,0],s2=[0,0,0];
+  for(const a of[-.2,0,.2])for(const b of[-.2,0,.2]){const[x,y]=pt(q,(c+.5+a)/n,(r+.5+b)/n),p=rgbAt(I,x,y);for(let k=0;k<3;k++){s1[k]+=p[k];s2[k]+=p[k]*p[k]}}
+  for(let k=0;k<3;k++){const mu=s1[k]/9;L+=mu/3;V+=s2[k]/9-mu*mu}}
+ for(let i=0;i<=n;i++)for(let t=0;t<10;t++){const u=(t+.5)/10;for(const[a,b]of[[i/n,u],[u,i/n]]){const[x,y]=pt(q,a,b),p=rgbAt(I,x,y);G+=(p[0]+p[1]+p[2])/3;gn++}}
+ const n2=n*n;return(L/n2-G/gn)/255-15*V/n2/65025}
+function seed(I){const bd=[[],[],[]],px=[];for(let t=0;t<I.W;t+=4)px.push([t,2],[t,I.H-3]);for(let t=0;t<I.H;t+=4)px.push([2,t],[I.W-3,t]);
+ px.forEach(([x,y])=>rgbAt(I,x,y).forEach((v,k)=>bd[k].push(v)));const bg=bd.map(a=>med(a)),X=[],Y=[];
+ for(let y=0;y<I.H;y+=3)for(let x=0;x<I.W;x+=3){const p=rgbAt(I,x,y);if(Math.abs(p[0]-bg[0])+Math.abs(p[1]-bg[1])+Math.abs(p[2]-bg[2])>70){X.push(x);Y.push(y)}}
+ if(X.length<50)return null;X.sort((a,b)=>a-b);Y.sort((a,b)=>a-b);const g=(A,p)=>A[Math.floor(A.length*p)],x0=g(X,.02),x1=g(X,.98),y0=g(Y,.02),y1=g(Y,.98);
+ return{cx:(x0+x1)/2,cy:(y0+y1)/2,sd:Math.max(x1-x0,y1-y0)*.95}}
+function fit(I,n){const m=Math.min(I.W,I.H),K=['gx','gy','gs','th'];let best=null,sd=seed(I);
+ const S=[];if(sd)for(const k of[.85,1,1.12])S.push({gs:Math.min(m,sd.sd*k),gx:sd.cx-sd.sd*k/2,gy:sd.cy-sd.sd*k/2});
+ for(const k of[.6,.8,.95])for(const[ox,oy]of[[0,0],[-.15,0],[.15,0],[0,-.15],[0,.15]])S.push({gs:m*k,gx:(I.W-m*k)/2+ox*m,gy:(I.H-m*k)/2+oy*m});
+ for(const z of S){
+  let q={gs:z.gs,gx:z.gx,gy:z.gy,th:0},sc=score(I,q,n),sp=[m*.06,m*.06,m*.06,.1],it=0;
+  while(sp[0]>m*.002&&it++<300){let imp=0;
+   for(let p=0;p<4;p++)for(const sg of[-1,1]){const t={...q};t[K[p]]+=sg*sp[p];if(t.gs<m*.25||t.gs>m*1.05||Math.abs(t.th)>.5)continue;const v=score(I,t,n);if(v>sc){sc=v;q=t;imp=1}}
+   for(const sg of[-1,1]){const d=sg*sp[2],t={...q,gs:q.gs+d,gx:q.gx-d/2,gy:q.gy-d/2};if(t.gs<m*.25||t.gs>m*1.05)continue;const v=score(I,t,n);if(v>sc){sc=v;q=t;imp=1}}
+   if(!imp)sp=sp.map(x=>x/2)}
+  if(!best||sc>best.sc)best={q,sc}}
+ return best.q}
+function readCells(I,q,n){const o=[];for(let r=0;r<n;r++)for(let c=0;c<n;c++){const A=[],B=[],C=[];
+ for(const a of[-.14,-.07,0,.07,.14])for(const b of[-.14,-.07,0,.07,.14]){const[x,y]=pt(q,(c+.5+a)/n,(r+.5+b)/n),p=rgbAt(I,x,y);A.push(p[0]);B.push(p[1]);C.push(p[2])}
+ o.push([med(A),med(B),med(C)])}return o}
+function autoWB(rg){let b=-1,bs=.25;rg.forEach((c,j)=>{const t=hsv(...c);if(t[2]>.5&&t[1]<bs){bs=t[1];b=j}});
+ if(b<0)return[1,1,1];const m=Math.max(...rg[b]);return rg[b].map(v=>Math.min(1.8,m/Math.max(v,1)))}
+const PROTO=[[245,245,240],[214,32,43],[30,163,74],[255,213,0],[255,122,0],[31,95,216]];
+const feat=c=>{const[h,s,v]=hsv(...c),a=h*Math.PI/180;return[s*Math.cos(a),s*Math.sin(a),.4*v]};
+const dst=(a,b)=>Math.hypot(a[0]-b[0],a[1]-b[1],a[2]-b[2]);
+function classifyAll(items,cap){const F=items.map(feat);let P=PROTO.map(feat),A=[];
+ for(let it=0;it<8;it++){const D=F.map(f=>P.map(p=>dst(f,p)));A=D.map(d=>d.indexOf(Math.min(...d)));
+  if(cap){const L=[];D.forEach((d,i)=>d.forEach((x,k)=>L.push([x,i,k])));L.sort((a,b)=>a[0]-b[0]);const cc=Array(6).fill(cap),dn=[];L.forEach(([x,i,k])=>{if(dn[i]==null&&cc[k]>0){dn[i]=k;cc[k]--}});A=dn}
+  const S=P.map(()=>[0,0,0,0]);A.forEach((k,i)=>{for(let j=0;j<3;j++)S[k][j]+=F[i][j];S[k][3]++});
+  P=P.map((p,k)=>S[k][3]?[S[k][0]/S[k][3],S[k][1]/S[k][3],S[k][2]/S[k][3]]:p)}
+ return F.map((f,i)=>{if(hsv(...items[i])[2]<.12)return[6,0];const d=P.map(p=>dst(f,p)),k=A[i],oth=Math.min(...d.filter((_,j)=>j!=k));
+  let c=Math.max(0,Math.min(1,1-d[k]/Math.max(oth,1e-6)));if(d[k]>oth)c=.5;return[k,c]})}
+//VIS-END
+function prep(f){const q=SC[f],r=q.rot,iw=q.im.naturalWidth,ih=q.im.naturalHeight,k=Math.min(1,720/Math.max(iw,ih)),sw=iw*k,sh=ih*k,sd=r%2;q.w.width=sd?sh:sw;q.w.height=sd?sw:sh;
+ const x=q.w.getContext('2d');x.save();x.translate(q.w.width/2,q.w.height/2);x.rotate(r*Math.PI/2);x.drawImage(q.im,-sw/2,-sh/2,sw,sh);x.restore();
+ q.I={W:q.w.width,H:q.w.height,d:x.getImageData(0,0,q.w.width,q.w.height).data}}
+function auto(f){const q=SC[f];Object.assign(q,fit(q.I,N))}
+function classifyScans(){const fs=SLOT.filter(f=>SC[f]&&SC[f].rgb),n=N,n2=n*n;if(!fs.length)return;
+ const items=[];fs.forEach(f=>{const q=SC[f];q.rgb.forEach(c=>items.push(c.map((v,i)=>Math.min(255,v*q.wb[i]))))});
+ const R=classifyAll(items,items.length==6*n2?n2:0);
+ if(!scanOn){scanOn=1;st=st.map(()=>6);hist=hist.slice(0,hp+1);hist.push('');hp++}
+ let t=0;fs.forEach(f=>{const q=SC[f];q.cf=[];for(let j=0;j<n2;j++){const[k,c]=R[t++];q.cf.push([k,c]);st[f*n2+j]=c>=.5?k:6;cfd[f*n2+j]=c}});
+ hist[hp]=st.join();clearSol();refresh();sstat();cards()}
+function detect(f){const q=SC[f];if(!q||busy)return;q.rgb=readCells(q.I,q,N);if(!q.man)q.wb=autoWB(q.rgb);classifyScans()}
+function edit(){const q=SC[sel];$('#se').style.display=q?'block':'none';if(!q){scv.style.display='none';return}
+ scv.style.display='block';const W=q.w.width,H=q.w.height,k=Math.min(1,340/W);scv.width=W*k;scv.height=H*k;q.k=k;const x=scv.getContext('2d'),n=N,P=(u,v)=>pt(q,u,v).map(a=>a*k);x.drawImage(q.w,0,0,scv.width,scv.height);
+ x.strokeStyle='#2dd4bf';x.lineWidth=2;x.beginPath();[[0,0],[1,0],[1,1],[0,1],[0,0]].forEach(([u,v],i)=>x[i?'lineTo':'moveTo'](...P(u,v)));x.stroke();x.lineWidth=1;
+ for(let i=1;i<n;i++){x.beginPath();x.moveTo(...P(i/n,0));x.lineTo(...P(i/n,1));x.moveTo(...P(0,i/n));x.lineTo(...P(1,i/n));x.stroke()}
+ q.cf.forEach(([c,cf],j)=>{const p=P((j%n+.5)/n,((j/n|0)+.5)/n);x.beginPath();x.arc(p[0],p[1],q.gs/n*k*.26,0,7);x.fillStyle=cf>=.5?COL[c]:'#4b5563';x.fill();x.lineWidth=3;x.strokeStyle=cf>=.75?'#fff':cf>=.5?'#fbbf24':'#ef4444';x.stroke()});
+ $('#szr').value=q.gs/Math.min(W,H)*100;$('#szt').value=q.th*57.3;$('#hint').textContent=`Sisi ${FACES[sel]}: ${HINT[sel]}. Lingkaran putih = yakin, kuning = meragukan, merah = ditolak.`}
+function loadF(f,file){if(!/^image\/(jpeg|png|webp)$/.test(file.type)){msg(`Format ${file.name} tidak didukung. Gunakan JPG, JPEG, PNG, atau WEBP.`,'e');return}
+ const u=URL.createObjectURL(file),im=new Image();im.onload=()=>{if(SC[f])URL.revokeObjectURL(SC[f].u);SC[f]={im,u,rot:0,th:0,man:0,wb:[1,1,1],w:document.createElement('canvas'),cf:[]};prep(f);auto(f);sel=f;detect(f);edit()};
+ im.onerror=()=>msg('Gagal membaca gambar '+file.name,'e');im.src=u}
+function pick(f,cam){const i=document.createElement('input');i.type='file';i.accept='image/jpeg,image/png,image/webp';if(cam)i.capture='environment';i.onchange=()=>i.files[0]&&loadF(f,i.files[0]);i.click()}
+function rem(f){if(busy)return;const q=SC[f];if(!q)return;URL.revokeObjectURL(q.u);SC[f]=null;const n2=N*N;
+ if(scanOn){for(let j=0;j<n2;j++){st[f*n2+j]=6;cfd[f*n2+j]=0}hist[hp]=st.join();clearSol();refresh()}
+ if(sel==f)sel=-1;cards();edit();sstat()}
+function cards(){const box=$('#slots');box.innerHTML='';
+ SLOT.forEach(f=>{const q=SC[f],d=document.createElement('div');d.className='slot'+(f==sel?' on':'');
+  let t='Belum dipindai';if(q&&q.cf.length){const lo=q.cf.filter(x=>x[1]<.5).length,av=Math.round(q.cf.reduce((a,x)=>a+x[1],0)/q.cf.length*100);t=(lo?`⚠ ${lo} ditolak/meragukan`:'✓ terdeteksi')+` · akurasi ${av}%`}
+  d.innerHTML=`<b>${FACES[f]}</b>${q?`<img src="${q.u}">`:'<div class="ph"></div>'}<small>${t}</small>`;
+  const bar=document.createElement('div');bar.className='bt';
+  [[q?'Replace Image':'Upload Image',()=>pick(f,0)],['📷',()=>pick(f,1)],['Remove Image',()=>rem(f)]].forEach(([n,fn])=>{const b=document.createElement('button');b.className='b';b.textContent=n;b.onclick=e=>{e.stopPropagation();fn()};bar.appendChild(b)});
+  d.appendChild(bar);d.onclick=()=>{if(SC[f]){sel=f;cards();edit()}};box.appendChild(d)})}
+$('#fmb').onclick=()=>$('#fm').click();
+$('#fm').onchange=e=>{const fs=[...e.target.files],free=SLOT.filter(f=>!SC[f]);fs.slice(0,free.length).forEach((file,i)=>loadF(free[i],file));if(fs.length>free.length)msg(`Hanya ${free.length} slot kosong; ${fs.length-free.length} foto diabaikan. Pakai Replace Image untuk mengganti.`,'e');e.target.value=''};
+$('#szr').oninput=e=>{const q=SC[sel];if(!q)return;const m=Math.min(q.w.width,q.w.height),cx=q.gx+q.gs/2,cy=q.gy+q.gs/2;q.gs=e.target.value/100*m;q.gx=cl2(cx-q.gs/2,0,q.w.width-q.gs);q.gy=cl2(cy-q.gs/2,0,q.w.height-q.gs);detect(sel);edit()};
+$('#szt').oninput=e=>{const q=SC[sel];if(q){q.th=e.target.value/57.3;detect(sel);edit()}};$('#sr').onclick=()=>{const q=SC[sel];if(!q)return;q.rot=(q.rot+1)%4;prep(sel);auto(sel);detect(sel);edit()};
+$('#sw').onclick=()=>{if(SC[sel]){cal=1;msg('Ketuk satu sticker PUTIH pada foto untuk kalibrasi pencahayaan.','o')}};
+$('#sz0').onclick=()=>{const q=SC[sel];if(q){q.man=0;detect(sel);edit()}};
+$('#sx').onclick=()=>{const q=SC[sel];if(q){q.man=0;auto(sel);detect(sel);edit()}};
+scv.onpointerdown=e=>{scv.setPointerCapture(e.pointerId);dr=[e.clientX,e.clientY,0]};
+scv.onpointermove=e=>{const q=SC[sel];if(!dr||!q)return;const f=scv.width/scv.getBoundingClientRect().width/q.k,dx=(e.clientX-dr[0])*f,dy=(e.clientY-dr[1])*f;dr[2]+=Math.abs(dx)+Math.abs(dy);dr[0]=e.clientX;dr[1]=e.clientY;q.gx=cl2(q.gx+dx,0,q.w.width-q.gs);q.gy=cl2(q.gy+dy,0,q.w.height-q.gs);detect(sel);edit()};
+scv.onpointerup=e=>{const q=SC[sel];if(dr&&dr[2]<5&&cal&&q){const r=scv.getBoundingClientRect(),rgb=sample(q.w.getContext('2d'),(e.clientX-r.left)/r.width*q.w.width,(e.clientY-r.top)/r.height*q.w.height,q.gs/N*.15),m=Math.max(...rgb);q.wb=rgb.map(v=>Math.min(4,m/Math.max(v,1)));q.man=1;cal=0;msg('Kalibrasi putih diterapkan pada sisi '+FACES[sel]+'.','o');detect(sel);edit()}dr=null};
+cards();
+function loop(now){requestAnimationFrame(loop);if(anim_)anim_(now);if(dirty&&T3){R.render(S,C);dirty=0}}
+refresh();requestAnimationFrame(loop);
+</script>
+</body>
+</html>
